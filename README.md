@@ -8,7 +8,12 @@ follow these steps to set up the enchanting atmosphere:
 ```
 ## Prerequisites
 
-### Install Openmpt123
+### Install ffmpeg
+```bash
+sudo apt install ffmpeg
+```
+
+### Install openmpt123
 ```bash
 sudo apt install openmpt123
 ```
