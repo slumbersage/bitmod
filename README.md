@@ -8,6 +8,8 @@ follow these steps to set up the enchanting atmosphere:
 ```
 ## Prerequisites
 
+Recommended Python version: Python 3.10+
+
 ### Install ffmpeg
 ```bash
 sudo apt install ffmpeg
@@ -21,7 +23,7 @@ sudo apt install openmpt123
 ### Install Wine and 32-bit architecture
 ```bash
 sudo apt install wine
-dpkg --add-architecture i386 && apt-get update &&
+sudo dpkg --add-architecture i386 && apt-get update &&
 apt-get install wine32:i386
 ```
 
@@ -46,4 +48,4 @@ python3 bitmod.py
 ```
 
 And you're done, enjoy!
-```
+
