@@ -203,17 +203,12 @@ async def play_wav_in_voice_channel(ctx, wav_file):
 
 
 
-
-# Command to play random module files continuously
 @bot.command()
-async def rplay(ctx):
+async def rplay(ctx, format=None):
     global currently_playing
-
-
 
     # Check if the user is connected to a voice channel
     if ctx.author.voice is None or ctx.author.voice.channel is None:
-        # Send an embed message with the icon for not being in a voice channel
         embed = discord.Embed(title="**Not Connected to Voice Channel!**", description="You need to be in a voice channel to play **music**.", color=0xFF0000)
         embed.set_thumbnail(url="attachment://icon.jpg")
 
@@ -231,8 +226,8 @@ async def rplay(ctx):
     currently_playing = True
 
     while currently_playing:
-        # Generate a random module ID
-        random_mod_id = get_random_module_id(api_key)
+        # Get a random module ID based on the specified format
+        random_mod_id = get_random_module_id(api_key, format=format)
 
         # Download the module file and retrieve information
         mod_content, mod_info = download_mod_file(random_mod_id)
@@ -275,8 +270,6 @@ async def rplay(ctx):
 
     # Reset the flag to indicate that playback is complete
     currently_playing = False
-
-
 
 # Function to play a module file in a loop
 @bot.command()

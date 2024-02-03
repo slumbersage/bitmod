@@ -57,7 +57,7 @@ def parse_module_info(xml_text):
 
     return module_info
 
-def get_random_module_id(api_key, format='mod', genre=None, channels=None, size=None):
+def get_random_module_id(api_key, format=None, genre=None, channels=None, size=None):
     base_url = "https://modarchive.org/data/xml-tools.php"
     params = {'key': api_key, 'request': 'random', 'format': format, 'genreid': genre, 'channels': channels, 'size': size}
 
