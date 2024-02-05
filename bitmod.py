@@ -27,6 +27,8 @@ stop_votes = {}
 
 rskip_votes = {}
 
+voice_channel_timers = {}
+
 
 currently_playing = False
 
@@ -35,6 +37,11 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 
+# Event triggered when the bot is ready
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name} ({bot.user.id})')
+    check_voice_channel_members.start()  # Start the check_voice_channel_members loop when the bot is ready
 
 bot.remove_command('help')
 
@@ -174,6 +181,10 @@ def convert_mod_to_wav(mod_content, file_name, original_file_extension):
 
 # Function to play a WAV file in a voice channel
 async def play_wav_in_voice_channel(ctx, wav_file):
+    # Check if the author is in a voice channel
+    if ctx.author.voice is None or ctx.author.voice.channel is None:
+        return
+
     # Connect to the voice channel
     voice_channel = await ctx.author.voice.channel.connect()
 
@@ -200,6 +211,112 @@ async def play_wav_in_voice_channel(ctx, wav_file):
 
 
 
+# Create a task to periodically check voice channel members
+@tasks.loop(seconds=20)
+async def check_voice_channel_members():
+    global currently_playing, stop_votes
+
+    for guild in bot.guilds:
+        for voice_channel in guild.voice_channels:
+            if bot.user in voice_channel.members:
+                # If there are other members, reset the timer
+                if len(voice_channel.members) > 1:
+                    if guild.id in voice_channel_timers:
+                        voice_channel_timers.pop(guild.id)
+                # If the bot is the only member, start or reset the timer
+                else:
+                    if guild.id not in voice_channel_timers:
+                        voice_channel_timers[guild.id] = 0
+                    voice_channel_timers[guild.id] += 5  # Increase timer by 5 seconds
+
+                    # If the timer reaches 30 seconds, stop playback, clear queue, and disconnect
+                    if voice_channel_timers[guild.id] >= 30:
+                        if guild.voice_client:  # Check if the bot is connected to a voice channel
+                            await guild.voice_client.disconnect()
+                        if currently_playing:
+                            currently_playing = False
+                            queue.clear()
+                            stop_votes.clear()
+
+
+
+# Modified stop command to handle errors and check if the bot is the only member in the voice channel
+@bot.command()
+async def stop(ctx):
+    global currently_playing, stop_votes
+
+    # Check if the user is connected to a voice channel
+    if ctx.author.voice is None or ctx.author.voice.channel is None:
+        embed = discord.Embed(
+            title="**Not Connected to Voice Channel!**",
+            description="You need to be in a voice channel to stop **music**.",
+            color=0xFF0000
+        )
+        embed.set_thumbnail(url="attachment://icon.jpg")
+
+        with open("icon.jpg", "rb") as icon_file:
+            icon = discord.File(icon_file, filename="icon.jpg")
+            await ctx.send(embed=embed, file=icon)
+        return
+
+    voice_channel = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+
+    # Check if something is currently playing
+    if voice_channel and voice_channel.is_playing():
+        # Check if the user has already voted
+        if ctx.author.id in stop_votes:
+            await ctx.send("You've already voted to stop playback.")
+        else:
+            # Add the user to the list of votes
+            stop_votes[ctx.author.id] = True
+
+            # Calculate the number of votes needed to stop
+            votes_needed = len(ctx.author.voice.channel.members) // 2
+
+            # Check if enough votes have been received
+            if len(stop_votes) >= votes_needed:
+                await ctx.send("Stopping playback and clearing the queue.")
+                currently_playing = False
+                queue.clear()
+                stop_votes.clear()  # Clear the votes after stopping
+                if voice_channel:
+                    voice_channel.stop()
+                    await voice_channel.disconnect()
+            else:
+                await ctx.send(f"Vote recorded! {votes_needed - len(stop_votes)} more votes needed to stop playback.")
+    else:
+        await ctx.send("Nothing is currently playing.")
+        
+        
+
+#  You can reset the votes manually with another command if needed
+# @bot.command()
+# async def reset_stop_votes(ctx):
+#     global stop_votes
+#     stop_votes = {}
+#     await ctx.send("Stop votes reset.")
+
+
+
+
+
+# Command to reset the timer when someone joins or leaves the voice channel
+@bot.event
+async def on_voice_state_update(member, before, after):
+    global voice_channel_timers
+
+    if bot.user.id == member.id:
+        # Bot's own voice state update, reset the timer
+        if after.channel:
+            guild_id = after.channel.guild.id
+            if guild_id in voice_channel_timers:
+                voice_channel_timers.pop(guild_id)
+
+
+# Ensure the loop is stopped when the bot is closed
+@bot.event
+async def on_disconnect():
+    check_voice_channel_members.stop()
 
 
 
@@ -591,65 +708,6 @@ async def skip(ctx):
 
 
 
-@bot.command()
-async def stop(ctx):
-    global currently_playing, stop_votes
-
-    # Check if the user is connected to a voice channel
-    if ctx.author.voice is None or ctx.author.voice.channel is None:
-        # Send an embed message with the icon for not being in a voice channel
-        embed = discord.Embed(
-            title="**Not Connected to Voice Channel!**",
-            description="You need to be in a voice channel to stop **music**.",
-            color=0xFF0000
-        )
-        embed.set_thumbnail(url="attachment://icon.jpg")
-
-        with open("icon.jpg", "rb") as icon_file:
-            icon = discord.File(icon_file, filename="icon.jpg")
-            await ctx.send(embed=embed, file=icon)
-        return
-
-    voice_channel = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-
-    # Check if something is currently playing
-    if voice_channel and voice_channel.is_playing():
-        # Check if the user has already voted
-        if ctx.author.id in stop_votes:
-            await ctx.send("You've already voted to stop playback.")
-        else:
-            # Add the user to the list of votes
-            stop_votes[ctx.author.id] = True
-
-            # Calculate the number of votes needed to stop
-            votes_needed = len(ctx.author.voice.channel.members) // 2
-
-            # Check if enough votes have been received
-            if len(stop_votes) >= votes_needed:
-                await ctx.send("Stopping playback and clearing the queue.")
-                currently_playing = False
-                queue.clear()
-                voice_channel.stop()
-                stop_votes.clear()  # Clear the votes after stopping
-            else:
-                await ctx.send(f"Vote recorded! {votes_needed - len(stop_votes)} more votes needed to stop playback.")
-    else:
-        await ctx.send("Nothing is currently playing.")
-
-
-#  You can reset the votes manually with another command if needed
-# @bot.command()
-# async def reset_stop_votes(ctx):
-#     global stop_votes
-#     stop_votes = {}
-#     await ctx.send("Stop votes reset.")
-
-
-
-
-
-
-
 
 
 @bot.command()
@@ -915,4 +973,5 @@ async def mp3(ctx, mod_file_id):
 
 
 bot.run(config.DISCORD_BOT_TOKEN)
+
 
