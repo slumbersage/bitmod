@@ -204,7 +204,7 @@ async def play_wav_in_voice_channel(ctx, wav_file):
 
 
 @bot.command()
-async def rplay(ctx, format=None):
+async def rplay(ctx, format=None, genre=None):
     global currently_playing
 
     # Check if the user is connected to a voice channel
@@ -227,7 +227,7 @@ async def rplay(ctx, format=None):
 
     while currently_playing:
         # Get a random module ID based on the specified format
-        random_mod_id = get_random_module_id(api_key, format=format)
+        random_mod_id = get_random_module_id(api_key, format=format, genre=genre)
 
         # Download the module file and retrieve information
         mod_content, mod_info = download_mod_file(random_mod_id)
@@ -665,7 +665,9 @@ async def list(ctx):
 # Function to play a random module
 
 @bot.command()
-async def random(ctx, format='mod', genre='*', channels='*', size='*'):
+async def random(ctx, format='*', genre='*', channels='*', size='*'):
+    if format == '*':
+        genre = None
     if genre == '*':
         genre = None
     if channels == '*':
