@@ -667,7 +667,7 @@ async def list(ctx):
 @bot.command()
 async def random(ctx, format='*', genre='*', channels='*', size='*'):
     if format == '*':
-        genre = None
+        format = None
     if genre == '*':
         genre = None
     if channels == '*':
