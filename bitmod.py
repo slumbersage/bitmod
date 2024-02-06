@@ -681,7 +681,7 @@ async def play(ctx, mod_file_id):
 
     # Reset the flag to indicate that playback is complete
     currently_playing = False
-
+    await bot.change_presence(activity=None, status=discord.Status.online)
     # Check the queue for more modules
     if queue:
         next_module_id = queue.popleft()
