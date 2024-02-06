@@ -37,7 +37,7 @@ pip install -r requirements.txt
 Open the `config.py` file and sprinkle your magic:
 
 - Replace `DISCORD_BOT_TOKEN` with your Discord bot token.
-- Replace `MODARCHIVE_TOKEN` with your ModArchive API token.
+- Replace `MOD_ARCHIVE_API_KEY` with your ModArchive API key.
 
 ## Run the Bot
 
