@@ -14,6 +14,7 @@ import xml.etree as ET
 import io
 from io import BytesIO
 import random
+import re
 
 api_key = config.MOD_ARCHIVE_API_KEY
 
@@ -46,7 +47,7 @@ async def on_ready():
 
 
 @bot.event
-async def on_play(ctx, mod_info):
+async def on_play(ctx, mod_info, duration):
     global voice_channel_timers
 
     # Update the bot's presence with the current song title
@@ -56,14 +57,17 @@ async def on_play(ctx, mod_info):
     # Get the song title from the mod_info
     song_title = mod_info.get('songtitle', 'Unknown Song')
 
+    # Convert duration from seconds to minutes and seconds
+    minutes = int(duration // 60)
+    seconds = int(duration % 60)
+
     # Change the bot's presence before joining the voice channel
-    await bot.change_presence(activity=discord.Game(name=f"🎵 {song_title}"), status=discord.Status.dnd)
+    await bot.change_presence(activity=discord.Game(name=f"🎵 {song_title} | ⏳ {minutes}m : {seconds}s"), status=discord.Status.dnd)
 
     # Reset the timer
     guild_id = ctx.guild.id
     if guild_id in voice_channel_timers:
         voice_channel_timers.pop(guild_id)
-
 
 
 bot.remove_command('help')
@@ -388,7 +392,8 @@ async def rplay(ctx, format=None, genre=None):
         if not wav_file:
             continue  # Skip to the next iteration if conversion fails
         
-        await on_play(ctx, mod_info)
+        duration = get_wav_duration(wav_file)
+        await on_play(ctx, mod_info, duration)
         
         # Generate the module info image with specified positions
         background_image, img_path, mod_info = generate_module_info_image_with_custom_background(api_key,
@@ -484,9 +489,11 @@ async def loop(ctx, mod_file_id):
     if not wav_file:
         currently_playing = False  # Reset the flag if conversion fails
         return
-
-    await on_play(ctx, mod_info)
+    duration = get_wav_duration(wav_file)
     
+    await on_play(ctx, mod_info, duration)
+    
+
     # Generate the module info image with specified positions
     background_image, img_path, mod_info = generate_module_info_image_with_custom_background(api_key,
         mod_file_id, "np.jpg", {"id": (90, 340), "filename": (90, 240), 'date': (90, 135), 'size': (641, 312), 'hits': (90, 190), 'songtitle': (90, 290)}
@@ -573,6 +580,24 @@ async def rskip(ctx):
             await ctx.send(f"Vote recorded! {votes_needed - len(rskip_votes)} more votes needed to skip the current song in the loop.")
 
 
+def get_wav_duration(file_path):
+    try:
+        # Run ffmpeg command to get duration
+        result = subprocess.run(['ffmpeg', '-i', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # Extract duration from ffmpeg output
+        duration_match = re.search(r'Duration: (\d{2}:\d{2}:\d{2}\.\d+)', result.stderr)
+        if duration_match:
+            duration_str = duration_match.group(1)
+            hours, minutes, seconds = map(float, duration_str.split(':'))
+            duration_in_seconds = hours * 3600 + minutes * 60 + seconds
+            return duration_in_seconds
+        else:
+            print("Error extracting duration from ffmpeg output.")
+            return None
+    except Exception as e:
+        print(f"Error getting duration: {e}")
+        return None
 
 # Command to play a module file
 @bot.command()
@@ -649,9 +674,10 @@ async def play(ctx, mod_file_id):
     if not wav_file:
         currently_playing = False  # Reset the flag if conversion fails
         return
-
-    await on_play(ctx, mod_info)
-
+    duration = get_wav_duration(wav_file)
+    
+    await on_play(ctx, mod_info, duration)
+    
 
     # Generate the module info image with specified positions
     background_image, img_path, mod_info = generate_module_info_image_with_custom_background(api_key,
