@@ -43,6 +43,29 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
     check_voice_channel_members.start()  # Start the check_voice_channel_members loop when the bot is ready
 
+
+
+@bot.event
+async def on_play(ctx, mod_info):
+    global voice_channel_timers
+
+    # Update the bot's presence with the current song title
+    if not mod_info:
+        return
+
+    # Get the song title from the mod_info
+    song_title = mod_info.get('songtitle', 'Unknown Song')
+
+    # Change the bot's presence before joining the voice channel
+    await bot.change_presence(activity=discord.Game(name=f"🎵 {song_title}"), status=discord.Status.dnd)
+
+    # Reset the timer
+    guild_id = ctx.guild.id
+    if guild_id in voice_channel_timers:
+        voice_channel_timers.pop(guild_id)
+
+
+
 bot.remove_command('help')
 
 
@@ -282,6 +305,10 @@ async def stop(ctx):
                 if voice_channel:
                     voice_channel.stop()
                     await voice_channel.disconnect()
+                # set the bot presence to idle    
+                await bot.change_presence(activity=None, status=discord.Status.idle)
+
+                    
             else:
                 await ctx.send(f"Vote recorded! {votes_needed - len(stop_votes)} more votes needed to stop playback.")
     else:
@@ -324,6 +351,8 @@ async def on_disconnect():
 async def rplay(ctx, format=None, genre=None):
     global currently_playing
 
+    
+
     # Check if the user is connected to a voice channel
     if ctx.author.voice is None or ctx.author.voice.channel is None:
         embed = discord.Embed(title="**Not Connected to Voice Channel!**", description="You need to be in a voice channel to play **music**.", color=0xFF0000)
@@ -358,7 +387,9 @@ async def rplay(ctx, format=None, genre=None):
         wav_file = convert_mod_to_wav(mod_content, str(random_mod_id), original_file_extension)
         if not wav_file:
             continue  # Skip to the next iteration if conversion fails
-
+        
+        await on_play(ctx, mod_info)
+        
         # Generate the module info image with specified positions
         background_image, img_path, mod_info = generate_module_info_image_with_custom_background(api_key,
             random_mod_id, "np.jpg", {"id": (90, 340), "filename": (90, 240), 'date': (90, 135), 'size': (641, 312), 'hits': (90, 190), 'songtitle': (90, 290)}
@@ -454,6 +485,8 @@ async def loop(ctx, mod_file_id):
         currently_playing = False  # Reset the flag if conversion fails
         return
 
+    await on_play(ctx, mod_info)
+    
     # Generate the module info image with specified positions
     background_image, img_path, mod_info = generate_module_info_image_with_custom_background(api_key,
         mod_file_id, "np.jpg", {"id": (90, 340), "filename": (90, 240), 'date': (90, 135), 'size': (641, 312), 'hits': (90, 190), 'songtitle': (90, 290)}
@@ -511,8 +544,9 @@ async def rskip(ctx):
             icon = discord.File(icon_file, filename="icon.jpg")
             await ctx.send(embed=embed, file=icon)
         return
-
+    
     voice_channel = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+
 
     # Check if something is currently playing
     if not currently_playing:
@@ -534,6 +568,7 @@ async def rskip(ctx):
             await ctx.send("Skipping the current song in the loop.")
             voice_channel.stop()
             rskip_votes.clear()  # Clear the votes after skipping
+            await bot.change_presence(activity=None, status=discord.Status.online)
         else:
             await ctx.send(f"Vote recorded! {votes_needed - len(rskip_votes)} more votes needed to skip the current song in the loop.")
 
@@ -604,6 +639,9 @@ async def play(ctx, mod_file_id):
         return
     # Get the original file extension from the API response
     original_file_extension = mod_info.get('format', 'mod').lower()
+    
+    
+    
 
 
     # Convert the module file to WAV using openmpt123 or HVL2WAV
@@ -612,7 +650,7 @@ async def play(ctx, mod_file_id):
         currently_playing = False  # Reset the flag if conversion fails
         return
 
-
+    await on_play(ctx, mod_info)
 
 
     # Generate the module info image with specified positions
@@ -692,6 +730,9 @@ async def skip(ctx):
                 await ctx.send("Skipping the current module.")
                 voice_channel.stop()
                 skip_votes.clear()  # Clear the votes after skipping
+                
+                await bot.change_presence(activity=None, status=discord.Status.online)
+
             else:
                 await ctx.send(f"Vote recorded! {votes_needed - len(skip_votes)} more votes needed to skip.")
     else:
