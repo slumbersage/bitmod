@@ -264,6 +264,7 @@ async def check_voice_channel_members():
                             currently_playing = False
                             queue.clear()
                             stop_votes.clear()
+                            await bot.change_presence(activity=None, status=discord.Status.idle)
 
 
 
