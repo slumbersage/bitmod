@@ -39,7 +39,6 @@ Open the `config.py` file and sprinkle your magic:
 - Replace `DISCORD_BOT_TOKEN` with your Discord bot token.
 - Replace `MOD_ARCHIVE_API_KEY` with your ModArchive API key.
 
-
 ## Run the Bot
 
 Now, it's time to awaken BitMod:
