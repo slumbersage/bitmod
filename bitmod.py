@@ -30,8 +30,9 @@ rskip_votes = {}
 
 voice_channel_timers = {}
 
-
 currently_playing = False
+
+currently_playing_module = []
 
 # Creating an instance of Intents with all flags enabled
 intents = discord.Intents.all()
@@ -354,7 +355,7 @@ async def on_disconnect():
 
 @bot.command()
 async def rplay(ctx, format=None, genre=None):
-    global currently_playing
+    global currently_playing, currently_playing_module
 
     
 
@@ -379,7 +380,7 @@ async def rplay(ctx, format=None, genre=None):
     while currently_playing:
         # Get a random module ID based on the specified format
         random_mod_id = get_random_module_id(api_key, format=format, genre=genre)
-
+        currently_playing_module.append(random_mod_id)
         # Download the module file and retrieve information
         mod_content, mod_info = download_mod_file(random_mod_id)
         if not mod_content or not mod_info:
@@ -421,14 +422,14 @@ async def rplay(ctx, format=None, genre=None):
         os.remove(f"{str(random_mod_id)}.{original_file_extension}")
         os.remove(f"{str(random_mod_id)}.{original_file_extension}.wav")
         os.remove(img_path)  # Remove the image file from your system
-
+        currently_playing_module.remove(random_mod_id)
     # Reset the flag to indicate that playback is complete
     currently_playing = False
 
 # Function to play a module file in a loop
 @bot.command()
 async def loop(ctx, mod_file_id):
-    global currently_playing
+    global currently_playing, currently_playing_module
 
     # Check if the user is connected to a voice channel
     if ctx.author.voice is None or ctx.author.voice.channel is None:
@@ -481,7 +482,8 @@ async def loop(ctx, mod_file_id):
             icon = discord.File(icon_file, filename="icon.jpg")
             await ctx.send(embed=embed, file=icon)
         return
-
+    
+    currently_playing_module.append(mod_file_id)
     # Get the original file extension from the API response
     original_file_extension = mod_info.get('format', 'mod').lower()
 
@@ -521,7 +523,7 @@ async def loop(ctx, mod_file_id):
     os.remove(f"{str(mod_file_id)}.{original_file_extension}")
     os.remove(f"{str(mod_file_id)}.{original_file_extension}.wav")
     os.remove(img_path)  # Remove the image file from your system
-
+    currently_playing_module.remove(mod_file_id)
     # Reset the flag to indicate that playback is complete
     currently_playing = False
 
@@ -603,7 +605,7 @@ def get_wav_duration(file_path):
 # Command to play a module file
 @bot.command()
 async def play(ctx, mod_file_id):
-    global currently_playing
+    global currently_playing, currently_playing_module
 
     # Check if the provided argument is a valid number
     if not mod_file_id.isdigit():
@@ -663,6 +665,8 @@ async def play(ctx, mod_file_id):
             icon = discord.File(icon_file, filename="icon.jpg")
             await ctx.send(embed=embed, file=icon)
         return
+    
+    currently_playing_module.append(mod_file_id)
     # Get the original file extension from the API response
     original_file_extension = mod_info.get('format', 'mod').lower()
     
@@ -705,7 +709,7 @@ async def play(ctx, mod_file_id):
     os.remove(f"{str(mod_file_id)}.{original_file_extension}")
     os.remove(f"{str(mod_file_id)}.{original_file_extension}.wav")
     os.remove(img_path)  # Remove the image file from your system
-
+    currently_playing_module.remove(mod_file_id)
     # Reset the flag to indicate that playback is complete
     currently_playing = False
     await bot.change_presence(activity=None, status=discord.Status.online)
@@ -972,6 +976,7 @@ def cleanup_temp_files(*files):
 
 @bot.command()
 async def mp3(ctx, mod_file_id):
+    global currently_playing_module
     # Check if the provided argument is a valid number
     if not mod_file_id.isdigit():
         # Send an embed message with the icon for invalid input
@@ -981,6 +986,10 @@ async def mp3(ctx, mod_file_id):
         with open("icon.jpg", "rb") as icon_file:
             icon = discord.File(icon_file, filename="icon.jpg")
             await ctx.send(embed=embed, file=icon)
+        return
+    # Check if the current module is playing
+    if mod_file_id in currently_playing_module:
+        await ctx.send("Sorry, this module is currently playing. Cannot convert.")
         return
 
     # Download the module file and retrieve information
