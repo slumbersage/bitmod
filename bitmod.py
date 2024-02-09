@@ -240,7 +240,7 @@ async def play_wav_in_voice_channel(ctx, wav_file):
 
 
 # Create a task to periodically check voice channel members
-@tasks.loop(seconds=20)
+@tasks.loop(seconds=3)
 async def check_voice_channel_members():
     global currently_playing, stop_votes
 
@@ -255,10 +255,10 @@ async def check_voice_channel_members():
                 else:
                     if guild.id not in voice_channel_timers:
                         voice_channel_timers[guild.id] = 0
-                    voice_channel_timers[guild.id] += 5  # Increase timer by 5 seconds
+                    voice_channel_timers[guild.id] += 3  # Increase timer by 5 seconds
 
                     # If the timer reaches 30 seconds, stop playback, clear queue, and disconnect
-                    if voice_channel_timers[guild.id] >= 30:
+                    if voice_channel_timers[guild.id] >= 3:
                         if guild.voice_client:  # Check if the bot is connected to a voice channel
                             await guild.voice_client.disconnect()
                         if currently_playing:
